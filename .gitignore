@@ -1,0 +1,46 @@
+# PHP
+*.php~
+*.phar
+/vendor/
+composer.lock
+
+# Node.js
+node_modules/
+package-lock.json
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Database
+*.sql
+!database/schema.sql
+
+# Uploads
+/uploads/
+/videos/
+/temp/
+
+# Logs
+*.log
+logs/
+
+# OS
+Thumbs.db
+.DS_Store
+
+# Cache
+.cache/
+tmp/
