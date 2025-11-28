@@ -1,33 +1,42 @@
 <?php
 /**
  * Helper Functions for Video Commerce Platform
- * Contains utility functions for the application
+ * PDO Compatible - Works with MySQL/PDO Database Connection
  */
 
 /**
  * Get all products from database
- * @param mysqli $conn Database connection
+ * @param PDO $conn Database connection
  * @return array Array of products
  */
 function getProducts($conn) {
-    $query = "SELECT * FROM products";
-    $result = $conn->query($query);
-    return $result ? $result->fetch_all(MYSQLI_ASSOC) : [];
+    try {
+        $query = "SELECT * FROM products";
+        $stmt = $conn->prepare($query);
+        $stmt->execute();
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    } catch (PDOException $e) {
+        error_log('Error fetching products: ' . $e->getMessage());
+        return [];
+    }
 }
 
 /**
  * Get product by ID
- * @param mysqli $conn Database connection
+ * @param PDO $conn Database connection
  * @param int $product_id Product ID
  * @return array Product details
  */
 function getProductById($conn, $product_id) {
-    $query = "SELECT * FROM products WHERE id = ?";
-    $stmt = $conn->prepare($query);
-    $stmt->bind_param('i', $product_id);
-    $stmt->execute();
-    $result = $stmt->get_result();
-    return $result->fetch_assoc();
+    try {
+        $query = "SELECT * FROM products WHERE id = ?";
+        $stmt = $conn->prepare($query);
+        $stmt->execute([$product_id]);
+        return $stmt->fetch(PDO::FETCH_ASSOC);
+    } catch (PDOException $e) {
+        error_log('Error fetching product: ' . $e->getMessage());
+        return null;
+    }
 }
 
 /**
@@ -92,65 +101,76 @@ function redirect($url) {
 
 /**
  * Get products by category
- * @param mysqli $conn Database connection
+ * @param PDO $conn Database connection
  * @param string $category Category name
  * @return array Array of products
  */
 function getProductsByCategory($conn, $category) {
-    $query = "SELECT * FROM products WHERE category = ?";
-    $stmt = $conn->prepare($query);
-    $stmt->bind_param('s', $category);
-    $stmt->execute();
-    $result = $stmt->get_result();
-    return $result->fetch_all(MYSQLI_ASSOC);
+    try {
+        $query = "SELECT * FROM products WHERE category = ?";
+        $stmt = $conn->prepare($query);
+        $stmt->execute([$category]);
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    } catch (PDOException $e) {
+        error_log('Error fetching products by category: ' . $e->getMessage());
+        return [];
+    }
 }
 
 /**
  * Search products
- * @param mysqli $conn Database connection
+ * @param PDO $conn Database connection
  * @param string $query Search query
  * @return array Array of matching products
  */
 function searchProducts($conn, $query) {
-    $query = '%' . sanitizeInput($query) . '%';
-    $sql = "SELECT * FROM products WHERE name LIKE ? OR description LIKE ?";
-    $stmt = $conn->prepare($sql);
-    $stmt->bind_param('ss', $query, $query);
-    $stmt->execute();
-    $result = $stmt->get_result();
-    return $result->fetch_all(MYSQLI_ASSOC);
+    try {
+        $search = '%' . sanitizeInput($query) . '%';
+        $sql = "SELECT * FROM products WHERE name LIKE ? OR description LIKE ?";
+        $stmt = $conn->prepare($sql);
+        $stmt->execute([$search, $search]);
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    } catch (PDOException $e) {
+        error_log('Error searching products: ' . $e->getMessage());
+        return [];
+    }
 }
 
 /**
  * Get featured products
- * @param mysqli $conn Database connection
+ * @param PDO $conn Database connection
  * @param int $limit Number of products to return
  * @return array Array of featured products
  */
 function getFeaturedProducts($conn, $limit = 5) {
-    $query = "SELECT * FROM products WHERE featured = 1 LIMIT ?";
-    $stmt = $conn->prepare($query);
-    $stmt->bind_param('i', $limit);
-    $stmt->execute();
-    $result = $stmt->get_result();
-    return $result->fetch_all(MYSQLI_ASSOC);
+    try {
+        $query = "SELECT * FROM products WHERE featured = 1 LIMIT ?";
+        $stmt = $conn->prepare($query);
+        $stmt->bindParam(1, $limit, PDO::PARAM_INT);
+        $stmt->execute();
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    } catch (PDOException $e) {
+        error_log('Error fetching featured products: ' . $e->getMessage());
+        return [];
+    }
 }
 
 /**
  * Log activity
- * @param mysqli $conn Database connection
+ * @param PDO $conn Database connection
  * @param string $activity Activity description
- * @param int $user_id User ID
+ * @param int $user_id User ID (optional)
  */
 function logActivity($conn, $activity, $user_id = null) {
-    if ($user_id === null) {
-        $user_id = getCurrentUserId();
-    }
-    $query = "INSERT INTO activity_log (user_id, activity, timestamp) VALUES (?, ?, NOW())";
-    $stmt = $conn->prepare($query);
-    if ($stmt) {
-        $stmt->bind_param('is', $user_id, $activity);
-        $stmt->execute();
+    try {
+        if ($user_id === null) {
+            $user_id = getCurrentUserId();
+        }
+        $query = "INSERT INTO activity_log (user_id, activity, timestamp) VALUES (?, ?, NOW())";
+        $stmt = $conn->prepare($query);
+        $stmt->execute([$user_id, $activity]);
+    } catch (PDOException $e) {
+        error_log('Error logging activity: ' . $e->getMessage());
     }
 }
 
@@ -165,37 +185,111 @@ function formatDate($date) {
 
 /**
  * Get total sales
- * @param mysqli $conn Database connection
+ * @param PDO $conn Database connection
  * @return float Total sales amount
  */
 function getTotalSales($conn) {
-    $query = "SELECT SUM(total) as total FROM orders WHERE status = 'completed'";
-    $result = $conn->query($query);
-    $row = $result->fetch_assoc();
-    return $row['total'] ?? 0;
+    try {
+        $query = "SELECT SUM(total) as total FROM orders WHERE status = 'completed'";
+        $stmt = $conn->prepare($query);
+        $stmt->execute();
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+        return $row['total'] ?? 0;
+    } catch (PDOException $e) {
+        error_log('Error fetching total sales: ' . $e->getMessage());
+        return 0;
+    }
 }
 
 /**
  * Get total orders
- * @param mysqli $conn Database connection
+ * @param PDO $conn Database connection
  * @return int Total number of orders
  */
 function getTotalOrders($conn) {
-    $query = "SELECT COUNT(*) as count FROM orders";
-    $result = $conn->query($query);
-    $row = $result->fetch_assoc();
-    return $row['count'] ?? 0;
+    try {
+        $query = "SELECT COUNT(*) as count FROM orders";
+        $stmt = $conn->prepare($query);
+        $stmt->execute();
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+        return $row['count'] ?? 0;
+    } catch (PDOException $e) {
+        error_log('Error fetching total orders: ' . $e->getMessage());
+        return 0;
+    }
 }
 
 /**
  * Get total products
- * @param mysqli $conn Database connection
+ * @param PDO $conn Database connection
  * @return int Total number of products
  */
 function getTotalProducts($conn) {
-    $query = "SELECT COUNT(*) as count FROM products";
-    $result = $conn->query($query);
-    $row = $result->fetch_assoc();
-    return $row['count'] ?? 0;
+    try {
+        $query = "SELECT COUNT(*) as count FROM products";
+        $stmt = $conn->prepare($query);
+        $stmt->execute();
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+        return $row['count'] ?? 0;
+    } catch (PDOException $e) {
+        error_log('Error fetching total products: ' . $e->getMessage());
+        return 0;
+    }
+}
+
+/**
+ * Get orders by user ID
+ * @param PDO $conn Database connection
+ * @param int $user_id User ID
+ * @return array Array of user orders
+ */
+function getOrdersByUser($conn, $user_id) {
+    try {
+        $query = "SELECT * FROM orders WHERE user_id = ? ORDER BY created_at DESC";
+        $stmt = $conn->prepare($query);
+        $stmt->execute([$user_id]);
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    } catch (PDOException $e) {
+        error_log('Error fetching user orders: ' . $e->getMessage());
+        return [];
+    }
+}
+
+/**
+ * Create a new order
+ * @param PDO $conn Database connection
+ * @param int $user_id User ID
+ * @param float $total Order total
+ * @param string $status Order status
+ * @return int Order ID or 0 on failure
+ */
+function createOrder($conn, $user_id, $total, $status = 'pending') {
+    try {
+        $query = "INSERT INTO orders (user_id, total, status, created_at) VALUES (?, ?, ?, NOW())";
+        $stmt = $conn->prepare($query);
+        $stmt->execute([$user_id, $total, $status]);
+        return $conn->lastInsertId();
+    } catch (PDOException $e) {
+        error_log('Error creating order: ' . $e->getMessage());
+        return 0;
+    }
+}
+
+/**
+ * Update order status
+ * @param PDO $conn Database connection
+ * @param int $order_id Order ID
+ * @param string $status New status
+ * @return bool Success status
+ */
+function updateOrderStatus($conn, $order_id, $status) {
+    try {
+        $query = "UPDATE orders SET status = ? WHERE id = ?";
+        $stmt = $conn->prepare($query);
+        return $stmt->execute([$status, $order_id]);
+    } catch (PDOException $e) {
+        error_log('Error updating order status: ' . $e->getMessage());
+        return false;
+    }
 }
 ?>
