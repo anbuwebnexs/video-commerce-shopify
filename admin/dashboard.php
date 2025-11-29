@@ -1,42 +1,71 @@
 <?php
 // Admin Dashboard - Full platform management
-require_once '../config/database.php';
-require_once '../auth/session.php';
 
+// Start session only if not already started
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+
+require_once '../config/database.php';
+
+// Check if database connection exists
+if (!isset($conn) || $conn === null) {
+    die('Error: Database connection failed. Please check config/database.php');
+}
+
+// Define base URL
+$base_url = SITE_URL ?? 'http://localhost/videocom/video-commerce-shopify/';
+
+// Check if user is logged in and is admin
 if (!isset($_SESSION['user_id']) || $_SESSION['user_role'] !== 'admin') {
-    header('Location: /auth/login.php?mode=login');
+    header('Location: ' . $base_url . 'auth/login.php?mode=login');
     exit;
 }
 
 // Get platform statistics
 $stats_query = "SELECT 
-                 (SELECT COUNT(*) FROM users WHERE role = 'customer') as customer_count,
-                 (SELECT COUNT(*) FROM users WHERE role = 'influencer') as influencer_count,
-                 (SELECT COUNT(*) FROM products) as product_count,
-                 (SELECT COUNT(*) FROM videos) as video_count,
-                 (SELECT COUNT(*) FROM chat_messages) as chat_count";
+ (SELECT COUNT(*) FROM users WHERE role = 'customer') as customer_count,
+ (SELECT COUNT(*) FROM users WHERE role = 'influencer') as influencer_count,
+ (SELECT COUNT(*) FROM products) as product_count,
+ (SELECT COUNT(*) FROM videos) as video_count,
+ (SELECT COUNT(*) FROM chat_messages) as chat_count";
 
-$stats = $db->query($stats_query)->fetch(PDO::FETCH_ASSOC);
+try {
+    $stats = $conn->query($stats_query)->fetch(PDO::FETCH_ASSOC);
+} catch (Exception $e) {
+    $stats = ['customer_count' => 0, 'influencer_count' => 0, 'product_count' => 0, 'video_count' => 0, 'chat_count' => 0];
+}
 
 // Get recent users
 $users_query = "SELECT id, name, email, role, created_at FROM users ORDER BY created_at DESC LIMIT 10";
-$recent_users = $db->query($users_query)->fetchAll(PDO::FETCH_ASSOC);
+try {
+    $recent_users = $conn->query($users_query)->fetchAll(PDO::FETCH_ASSOC);
+} catch (Exception $e) {
+    $recent_users = [];
+}
 
 // Get all products for admin
 $products_query = "SELECT p.*, u.name as seller_name FROM products p 
-                   LEFT JOIN users u ON p.seller_id = u.id 
-                   ORDER BY p.created_at DESC LIMIT 15";
-$products = $db->query($products_query)->fetchAll(PDO::FETCH_ASSOC);
+ LEFT JOIN users u ON p.seller_id = u.id 
+ ORDER BY p.created_at DESC LIMIT 15";
+try {
+    $products = $conn->query($products_query)->fetchAll(PDO::FETCH_ASSOC);
+} catch (Exception $e) {
+    $products = [];
+}
 
 // Get all videos
 $videos_query = "SELECT v.*, p.name as product_name, u.name as creator_name 
-                 FROM videos v 
-                 JOIN products p ON v.product_id = p.id 
-                 JOIN users u ON v.creator_id = u.id 
-                 ORDER BY v.created_at DESC LIMIT 10";
-$videos = $db->query($videos_query)->fetchAll(PDO::FETCH_ASSOC);
+ FROM videos v 
+ JOIN products p ON v.product_id = p.id 
+ JOIN users u ON v.creator_id = u.id 
+ ORDER BY v.created_at DESC LIMIT 10";
+try {
+    $videos = $conn->query($videos_query)->fetchAll(PDO::FETCH_ASSOC);
+} catch (Exception $e) {
+    $videos = [];
+}
 ?>
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -53,28 +82,16 @@ $videos = $db->query($videos_query)->fetchAll(PDO::FETCH_ASSOC);
             --danger-color: #ef4444;
         }
         
-        body {
-            background: #f3f4f6;
-        }
+        body { background: #f3f4f6; }
         
         .navbar {
             background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
             box-shadow: 0 2px 10px rgba(0,0,0,0.1);
         }
         
-        .navbar-brand {
-            color: white !important;
-            font-weight: bold;
-            font-size: 1.5rem;
-        }
-        
-        .nav-link {
-            color: rgba(255,255,255,0.8) !important;
-        }
-        
-        .nav-link:hover {
-            color: white !important;
-        }
+        .navbar-brand { color: white !important; font-weight: bold; font-size: 1.5rem; }
+        .nav-link { color: rgba(255,255,255,0.8) !important; }
+        .nav-link:hover { color: white !important; }
         
         .sidebar {
             background: white;
@@ -104,17 +121,9 @@ $videos = $db->query($videos_query)->fetchAll(PDO::FETCH_ASSOC);
             border-left: 5px solid var(--primary-color);
         }
         
-        .stat-card.success {
-            border-left-color: var(--success-color);
-        }
-        
-        .stat-card.warning {
-            border-left-color: var(--warning-color);
-        }
-        
-        .stat-card.danger {
-            border-left-color: var(--danger-color);
-        }
+        .stat-card.success { border-left-color: var(--success-color); }
+        .stat-card.warning { border-left-color: var(--warning-color); }
+        .stat-card.danger { border-left-color: var(--danger-color); }
         
         .stat-number {
             font-size: 2.5rem;
@@ -122,20 +131,10 @@ $videos = $db->query($videos_query)->fetchAll(PDO::FETCH_ASSOC);
             color: var(--primary-color);
         }
         
-        .stat-card.success .stat-number {
-            color: var(--success-color);
-        }
+        .stat-card.success .stat-number { color: var(--success-color); }
+        .stat-label { color: #999; font-size: 0.95rem; margin-top: 10px; }
         
-        .stat-label {
-            color: #999;
-            font-size: 0.95rem;
-            margin-top: 10px;
-        }
-        
-        .content {
-            padding: 20px;
-        }
-        
+        .content { padding: 20px; }
         .section-title {
             color: var(--primary-color);
             font-size: 1.5rem;
@@ -153,14 +152,8 @@ $videos = $db->query($videos_query)->fetchAll(PDO::FETCH_ASSOC);
             margin-bottom: 30px;
         }
         
-        .table {
-            margin-bottom: 0;
-        }
-        
-        .table thead {
-            background: #f9fafb;
-        }
-        
+        .table { margin-bottom: 0; }
+        .table thead { background: #f9fafb; }
         .table th {
             color: var(--primary-color);
             font-weight: 600;
@@ -174,45 +167,30 @@ $videos = $db->query($videos_query)->fetchAll(PDO::FETCH_ASSOC);
             font-weight: 500;
         }
         
-        .badge-influencer {
-            background: #dbeafe;
-            color: #1e40af;
-        }
-        
-        .badge-customer {
-            background: #dcfce7;
-            color: #166534;
-        }
-        
-        .badge-published {
-            background: #d1fae5;
-            color: #065f46;
-        }
-        
-        .badge-draft {
-            background: #fef3c7;
-            color: #92400e;
-        }
+        .badge-influencer { background: #dbeafe; color: #1e40af; }
+        .badge-customer { background: #dcfce7; color: #166534; }
+        .badge-published { background: #d1fae5; color: #065f46; }
+        .badge-draft { background: #fef3c7; color: #92400e; }
     </style>
 </head>
 <body>
     <!-- Navigation -->
     <nav class="navbar navbar-expand-lg navbar-dark sticky-top">
         <div class="container-fluid">
-            <a class="navbar-brand" href="/">???? Admin Panel</a>
+            <a class="navbar-brand" href="<?php echo $base_url; ?>">📊 Admin Panel</a>
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
                 <span class="navbar-toggler-icon"></span>
             </button>
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav ms-auto">
                     <li class="nav-item">
-                        <span style="color: white; margin-right: 20px;">Admin: <?php echo htmlspecialchars($_SESSION['user_name']); ?></span>
+                        <span style="color: white; margin-right: 20px;">Admin: <?php echo htmlspecialchars($_SESSION['user_name'] ?? 'Admin'); ?></span>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="/dashboard.php">Public View</a>
+                        <a class="nav-link" href="<?php echo $base_url; ?>dashboard.php">Public View</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="/auth/logout.php">Logout</a>
+                        <a class="nav-link" href="<?php echo $base_url; ?>auth/logout.php">Logout</a>
                     </li>
                 </ul>
             </div>
@@ -224,12 +202,12 @@ $videos = $db->query($videos_query)->fetchAll(PDO::FETCH_ASSOC);
             <!-- Sidebar -->
             <div class="col-md-3 sidebar">
                 <nav class="nav flex-column">
-                    <a class="nav-link active" href="#">???? Dashboard</a>
-                    <a class="nav-link" href="#">???? Users Management</a>
-                    <a class="nav-link" href="#">???? Products</a>
-                    <a class="nav-link" href="#">???? Videos</a>
-                    <a class="nav-link" href="#">???? Reports</a>
-                    <a class="nav-link" href="#">?????? Settings</a>
+                    <a class="nav-link active" href="#">📊 Dashboard</a>
+                    <a class="nav-link" href="#">👥 Users Management</a>
+                    <a class="nav-link" href="#">📦 Products</a>
+                    <a class="nav-link" href="#">🎬 Videos</a>
+                    <a class="nav-link" href="#">📊 Reports</a>
+                    <a class="nav-link" href="#">⚙️ Settings</a>
                 </nav>
             </div>
 
@@ -241,13 +219,13 @@ $videos = $db->query($videos_query)->fetchAll(PDO::FETCH_ASSOC);
                 <div class="row mb-4">
                     <div class="col-md-6">
                         <div class="stat-card">
-                            <div class="stat-number"><?php echo $stats['customer_count']; ?></div>
+                            <div class="stat-number"><?php echo $stats['customer_count'] ?? 0; ?></div>
                             <div class="stat-label">Total Customers</div>
                         </div>
                     </div>
                     <div class="col-md-6">
                         <div class="stat-card success">
-                            <div class="stat-number"><?php echo $stats['influencer_count']; ?></div>
+                            <div class="stat-number"><?php echo $stats['influencer_count'] ?? 0; ?></div>
                             <div class="stat-label">Active Influencers</div>
                         </div>
                     </div>
@@ -256,20 +234,20 @@ $videos = $db->query($videos_query)->fetchAll(PDO::FETCH_ASSOC);
                 <div class="row mb-4">
                     <div class="col-md-6">
                         <div class="stat-card warning">
-                            <div class="stat-number"><?php echo $stats['product_count']; ?></div>
+                            <div class="stat-number"><?php echo $stats['product_count'] ?? 0; ?></div>
                             <div class="stat-label">Total Products</div>
                         </div>
                     </div>
                     <div class="col-md-6">
                         <div class="stat-card danger">
-                            <div class="stat-number"><?php echo $stats['video_count']; ?></div>
+                            <div class="stat-number"><?php echo $stats['video_count'] ?? 0; ?></div>
                             <div class="stat-label">Total Videos</div>
                         </div>
                     </div>
                 </div>
 
                 <!-- Recent Users -->
-                <div class="section-title">???? Recent Users</div>
+                <div class="section-title">👥 Recent Users</div>
                 <div class="table-container">
                     <table class="table">
                         <thead>
@@ -298,7 +276,7 @@ $videos = $db->query($videos_query)->fetchAll(PDO::FETCH_ASSOC);
                 </div>
 
                 <!-- Recent Products -->
-                <div class="section-title">???? Recent Products</div>
+                <div class="section-title">📦 Recent Products</div>
                 <div class="table-container">
                     <table class="table">
                         <thead>
@@ -315,7 +293,7 @@ $videos = $db->query($videos_query)->fetchAll(PDO::FETCH_ASSOC);
                                 <td><?php echo htmlspecialchars($product['name']); ?></td>
                                 <td><?php echo htmlspecialchars($product['seller_name'] ?: 'Platform'); ?></td>
                                 <td>$<?php echo number_format($product['price'], 2); ?></td>
-                                <td><span style="color: #10b981;">??? Active</span></td>
+                                <td><span style="color: #10b981;">✅ Active</span></td>
                             </tr>
                             <?php endforeach; ?>
                         </tbody>
@@ -323,7 +301,7 @@ $videos = $db->query($videos_query)->fetchAll(PDO::FETCH_ASSOC);
                 </div>
 
                 <!-- Recent Videos -->
-                <div class="section-title">???? Recent Videos</div>
+                <div class="section-title">🎬 Recent Videos</div>
                 <div class="table-container">
                     <table class="table">
                         <thead>
@@ -339,10 +317,10 @@ $videos = $db->query($videos_query)->fetchAll(PDO::FETCH_ASSOC);
                             <tr>
                                 <td><?php echo htmlspecialchars($video['product_name']); ?></td>
                                 <td><?php echo htmlspecialchars($video['creator_name']); ?></td>
-                                <td><?php echo ucfirst($video['video_type']); ?></td>
+                                <td><?php echo ucfirst($video['video_type'] ?? 'Unknown'); ?></td>
                                 <td>
-                                    <span class="badge badge-<?php echo $video['status']; ?>">
-                                        <?php echo ucfirst($video['status']); ?>
+                                    <span class="badge badge-<?php echo $video['status'] ?? 'draft'; ?>">
+                                        <?php echo ucfirst($video['status'] ?? 'draft'); ?>
                                     </span>
                                 </td>
                             </tr>
