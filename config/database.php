@@ -11,10 +11,14 @@ define('DB_USER', 'root');
 define('DB_PASS', '');
 define('DB_CHARSET', 'utf8mb4');
 
+// Site Configuration - UPDATE THIS TO YOUR LOCAL PATH
+define('SITE_URL', 'http://localhost/videocom/video-commerce-shopify/');
+define('SITE_NAME', 'VideoCommerce');
+
 // Shopify API Configuration
 define('SHOPIFY_API_KEY', 'your_shopify_api_key');
 define('SHOPIFY_API_SECRET', 'your_shopify_api_secret');
-define('SHOPIFY_REDIRECT_URI', 'https://yourdomain.com/shopify/callback.php');
+define('SHOPIFY_REDIRECT_URI', SITE_URL . 'shopify/callback.php');
 define('SHOPIFY_SCOPES', 'read_products,read_inventory,read_orders');
 
 // Socket.io Server Configuration
@@ -24,11 +28,7 @@ define('SOCKET_SERVER_URL', 'http://localhost:3000');
 define('WEBRTC_STUN_SERVER', 'stun:stun.l.google.com:19302');
 define('WEBRTC_TURN_SERVER', ''); // Optional TURN server
 
-// Site Configuration
-define('SITE_URL', 'http://localhost/video-commerce');
-define('SITE_NAME', 'VideoCommerce');
-
-// Create PDO connection
+// Create PDO connection and assign to $conn variable
 try {
     $dsn = "mysql:host=" . DB_HOST . ";dbname=" . DB_NAME . ";charset=" . DB_CHARSET;
     $options = [
@@ -36,13 +36,21 @@ try {
         PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
         PDO::ATTR_EMULATE_PREPARES => false,
     ];
-    $pdo = new PDO($dsn, DB_USER, DB_PASS, $options);
+    
+    // Create connection and assign to $conn (used throughout the application)
+    $conn = new PDO($dsn, DB_USER, DB_PASS, $options);
+    
+    // Also keep $pdo for backward compatibility
+    $pdo = $conn;
+    
 } catch (PDOException $e) {
-    die("Database connection failed: " . $e->getMessage());
+    error_log('Database Connection Error: ' . $e->getMessage());
+    die('Error: Database connection failed. Please check config/database.php - ' . $e->getMessage());
 }
 
 // Session configuration
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
+
 ?>
