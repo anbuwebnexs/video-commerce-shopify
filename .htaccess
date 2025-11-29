@@ -1,9 +1,10 @@
-# Prevent directory listing
-Options -Indexes
+# Prevent directory listing but allow directory access
+Options -Indexes +FollowSymLinks
 
 # Enable mod_rewrite
 <IfModule mod_rewrite.c>
     RewriteEngine On
+    RewriteBase /videocom/video-commerce-shopify/
     
     # Allow access to actual files and directories
     RewriteCond %{REQUEST_FILENAME} -f [OR]
@@ -14,12 +15,21 @@ Options -Indexes
     RewriteRule ^(.*)$ index.php [QSA,L]
 </IfModule>
 
+# Allow directory access (fixes Forbidden error)
+<Directory *>
+    Allow from all
+    Require all granted
+</Directory>
+
 # Set appropriate headers
-Header set X-Content-Type-Options "nosniff"
-Header set X-Frame-Options "SAMEORIGIN"
-Header set X-XSS-Protection "1; mode=block"
+<IfModule mod_headers.c>
+    Header set X-Content-Type-Options "nosniff"
+    Header set X-Frame-Options "SAMEORIGIN"
+    Header set X-XSS-Protection "1; mode=block"
+</IfModule>
 
 # Deny access to sensitive files
 <FilesMatch "(config|database|includes)\.php|\.(env|sql)$">
     Deny from all
+    Require all denied
 </FilesMatch>
