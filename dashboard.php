@@ -1,11 +1,24 @@
 <?php
 // Dashboard - Buyer/Customer view showing all products and videos
+
+// Start session only if not already started
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+
 require_once 'config/database.php';
-require_once 'auth/session.php';
+
+// Check if database connection exists
+if (!isset($conn) || $conn === null) {
+    die('Error: Database connection failed. Please check config/database.php');
+}
+
+// Define base URL for all links
+$base_url = 'http://localhost/videocom/video-commerce-shopify/';
 
 // Ensure user is logged in
 if (!isset($_SESSION['user_id'])) {
-    header('Location: /auth/login.php?mode=login');
+    header('Location: ' . $base_url . 'auth/login.php?mode=login');
     exit;
 }
 
@@ -16,21 +29,18 @@ $query = "SELECT p.*, u.name as seller_name, COUNT(v.id) as video_count
           LEFT JOIN videos v ON p.id = v.product_id 
           GROUP BY p.id 
           ORDER BY p.created_at DESC";
-
-$products = $db->query($query)->fetchAll(PDO::FETCH_ASSOC);
+$products = $conn->query($query)->fetchAll(PDO::FETCH_ASSOC);
 
 // Get recommended videos
 $video_query = "SELECT v.*, p.name as product_name, u.name as creator_name 
-               FROM videos v 
-               JOIN products p ON v.product_id = p.id 
-               JOIN users u ON v.creator_id = u.id 
-               WHERE v.status = 'published' 
-               ORDER BY v.created_at DESC 
-               LIMIT 12";
-
-$videos = $db->query($video_query)->fetchAll(PDO::FETCH_ASSOC);
+                FROM videos v 
+                JOIN products p ON v.product_id = p.id 
+                JOIN users u ON v.creator_id = u.id 
+                WHERE v.status = 'published' 
+                ORDER BY v.created_at DESC 
+                LIMIT 12";
+$videos = $conn->query($video_query)->fetchAll(PDO::FETCH_ASSOC);
 ?>
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -201,26 +211,26 @@ $videos = $db->query($video_query)->fetchAll(PDO::FETCH_ASSOC);
     <!-- Navigation -->
     <nav class="navbar navbar-expand-lg navbar-light sticky-top">
         <div class="container-fluid">
-            <a class="navbar-brand" href="/">🎥 VideoCommerce</a>
+            <a class="navbar-brand" href="<?php echo $base_url; ?>index.php">🎥 VideoCommerce</a>
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
                 <span class="navbar-toggler-icon"></span>
             </button>
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav ms-auto">
                     <li class="nav-item">
-                        <span class="user-greeting">Welcome, <?php echo htmlspecialchars($_SESSION['user_name']); ?>!</span>
+                        <span class="user-greeting">Welcome, <?php echo htmlspecialchars($_SESSION['user_name'] ?? 'User'); ?>!</span>
                     </li>
-                    <?php if ($_SESSION['user_role'] === 'influencer'): ?>
+                    <?php if (isset($_SESSION['user_role']) && $_SESSION['user_role'] === 'influencer'): ?>
                     <li class="nav-item">
-                        <a class="nav-link" href="/influencer/dashboard.php">My Dashboard</a>
+                        <a class="nav-link" href="<?php echo $base_url; ?>influencer/dashboard.php">My Dashboard</a>
                     </li>
-                    <?php elseif ($_SESSION['user_role'] === 'admin'): ?>
+                    <?php elseif (isset($_SESSION['user_role']) && $_SESSION['user_role'] === 'admin'): ?>
                     <li class="nav-item">
-                        <a class="nav-link" href="/admin/dashboard.php">Admin Panel</a>
+                        <a class="nav-link" href="<?php echo $base_url; ?>admin/dashboard.php">Admin Panel</a>
                     </li>
                     <?php endif; ?>
                     <li class="nav-item">
-                        <a class="nav-link" href="/auth/logout.php">Logout</a>
+                        <a class="nav-link" href="<?php echo $base_url; ?>auth/logout.php">Logout</a>
                     </li>
                 </ul>
             </div>
@@ -262,15 +272,15 @@ $videos = $db->query($video_query)->fetchAll(PDO::FETCH_ASSOC);
                 <div class="product-card">
                     <div class="product-image">
                         <?php 
-                        $icons = ['🎧', '⌚', '🔌', '🔋', '📢', '☕', '💅', '💻', '🚰'];
-                        echo $icons[array_rand($icons)];
+                            $icons = ['🎧', '⌚', '🔌', '🔋', '📢', '☕', '💅', '💻', '🚰'];
+                            echo $icons[array_rand($icons)];
                         ?>
                     </div>
                     <div class="product-info">
                         <div class="product-name"><?php echo htmlspecialchars($product['name']); ?></div>
                         <div class="seller-info">By <?php echo htmlspecialchars($product['seller_name'] ?: 'Unknown'); ?></div>
                         <div class="product-price">$<?php echo number_format($product['price'], 2); ?></div>
-                        <p style="color: #666; font-size: 0.9rem;"><?php echo htmlspecialchars(substr($product['description'], 0, 80) . '...'); ?></p>
+                        <p style="color: #666; font-size: 0.9rem;"><?php echo htmlspecialchars(substr($product['description'] ?? '', 0, 80) . '...'); ?></p>
                         <?php if ($product['video_count'] > 0): ?>
                         <span class="video-badge">🎬 <?php echo $product['video_count']; ?> Video<?php echo $product['video_count'] > 1 ? 's' : ''; ?></span>
                         <?php endif; ?>
@@ -304,7 +314,7 @@ $videos = $db->query($video_query)->fetchAll(PDO::FETCH_ASSOC);
 
     <!-- Footer -->
     <footer style="background: rgba(0,0,0,0.2); color: white; padding: 30px; margin-top: 50px; text-align: center;">
-        <p>&copy; 2024 VideoCommerce Platform. All rights reserved.</p>
+        <p>© 2024 VideoCommerce Platform. All rights reserved.</p>
     </footer>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.bundle.min.js"></script>
