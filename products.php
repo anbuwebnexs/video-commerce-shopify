@@ -1,7 +1,16 @@
 <?php
+// Start session only if not already started
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+
 require_once 'config/database.php';
 require_once 'includes/functions.php';
-session_start();
+
+// Check if database connection exists
+if (!isset($conn) || $conn === null) {
+    die('Error: Database connection failed. Please check config/database.php');
+}
 
 // Get query parameters
 $search = isset($_GET['search']) ? sanitizeInput($_GET['search']) : '';
@@ -28,7 +37,11 @@ try {
     $paginated_products = [];
     $total_products = 0;
     $total_pages = 1;
+    error_log('Error fetching products: ' . $e->getMessage());
 }
+
+// Define base URL
+$base_url = 'http://localhost/videocom/video-commerce-shopify/';
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -37,7 +50,7 @@ try {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Products - Video Commerce Shop</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="assets/css/style.css">
+    <link rel="stylesheet" href="<?php echo $base_url; ?>assets/css/style.css">
     <style>
         .product-grid {
             display: grid;
@@ -102,20 +115,20 @@ try {
     <!-- Navigation -->
     <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
         <div class="container-fluid">
-            <a class="navbar-brand" href="index.php">🎥 Video Commerce</a>
+            <a class="navbar-brand" href="<?php echo $base_url; ?>index.php">🎥 Video Commerce</a>
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
                 <span class="navbar-toggler-icon"></span>
             </button>
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav ms-auto">
-                    <li class="nav-item"><a class="nav-link" href="index.php">Home</a></li>
-                    <li class="nav-item"><a class="nav-link active" href="products.php">Products</a></li>
-                    <li class="nav-item"><a class="nav-link" href="live.php">Live Streams</a></li>
+                    <li class="nav-item"><a class="nav-link" href="<?php echo $base_url; ?>index.php">Home</a></li>
+                    <li class="nav-item"><a class="nav-link active" href="<?php echo $base_url; ?>products.php">Products</a></li>
+                    <li class="nav-item"><a class="nav-link" href="<?php echo $base_url; ?>live.php">Live Streams</a></li>
                     <?php if (isAuthenticated()): ?>
-                        <li class="nav-item"><a class="nav-link" href="dashboard.php">Dashboard</a></li>
-                        <li class="nav-item"><a class="nav-link" href="auth/logout.php">Logout</a></li>
+                        <li class="nav-item"><a class="nav-link" href="<?php echo $base_url; ?>dashboard.php">Dashboard</a></li>
+                        <li class="nav-item"><a class="nav-link" href="<?php echo $base_url; ?>auth/logout.php">Logout</a></li>
                     <?php else: ?>
-                        <li class="nav-item"><a class="nav-link" href="auth/login.php">Login</a></li>
+                        <li class="nav-item"><a class="nav-link" href="<?php echo $base_url; ?>auth/login.php">Login</a></li>
                     <?php endif; ?>
                 </ul>
             </div>
@@ -130,13 +143,13 @@ try {
         <!-- Search and Filter -->
         <div class="row mb-4">
             <div class="col-md-8">
-                <form method="GET" action="products.php" class="d-flex gap-2">
+                <form method="GET" action="<?php echo $base_url; ?>products.php" class="d-flex gap-2">
                     <input type="text" name="search" class="form-control" placeholder="Search products..." value="<?php echo htmlspecialchars($search); ?>">
                     <button type="submit" class="btn btn-primary">Search</button>
                 </form>
             </div>
             <div class="col-md-4">
-                <form method="GET" action="products.php" class="d-flex gap-2">
+                <form method="GET" action="<?php echo $base_url; ?>products.php" class="d-flex gap-2">
                     <select name="category" class="form-select" onchange="this.form.submit()">
                         <option value="">All Categories</option>
                         <option value="electronics" <?php echo $category === 'electronics' ? 'selected' : ''; ?>>Electronics</option>
@@ -182,7 +195,7 @@ try {
             <div class="alert alert-warning" role="alert">
                 <h4 class="alert-heading">No Products Found</h4>
                 <p>Sorry, we couldn't find any products matching your search. Please try different search terms or browse all products.</p>
-                <a href="products.php" class="btn btn-primary mt-3">View All Products</a>
+                <a href="<?php echo $base_url; ?>products.php" class="btn btn-primary mt-3">View All Products</a>
             </div>
         <?php endif; ?>
 
@@ -192,25 +205,25 @@ try {
                 <ul class="pagination justify-content-center">
                     <?php if ($page > 1): ?>
                         <li class="page-item">
-                            <a class="page-link" href="?page=1<?php echo !empty($search) ? '&search=' . urlencode($search) : ''; ?><?php echo !empty($category) ? '&category=' . urlencode($category) : ''; ?>">First</a>
+                            <a class="page-link" href="<?php echo $base_url; ?>products.php?page=1<?php echo !empty($search) ? '&search=' . urlencode($search) : ''; ?><?php echo !empty($category) ? '&category=' . urlencode($category) : ''; ?>">First</a>
                         </li>
                         <li class="page-item">
-                            <a class="page-link" href="?page=<?php echo $page - 1; ?><?php echo !empty($search) ? '&search=' . urlencode($search) : ''; ?><?php echo !empty($category) ? '&category=' . urlencode($category) : ''; ?>">Previous</a>
+                            <a class="page-link" href="<?php echo $base_url; ?>products.php?page=<?php echo $page - 1; ?><?php echo !empty($search) ? '&search=' . urlencode($search) : ''; ?><?php echo !empty($category) ? '&category=' . urlencode($category) : ''; ?>">Previous</a>
                         </li>
                     <?php endif; ?>
 
                     <?php for ($i = 1; $i <= $total_pages; $i++): ?>
                         <li class="page-item <?php echo $i === $page ? 'active' : ''; ?>">
-                            <a class="page-link" href="?page=<?php echo $i; ?><?php echo !empty($search) ? '&search=' . urlencode($search) : ''; ?><?php echo !empty($category) ? '&category=' . urlencode($category) : ''; ?>"><?php echo $i; ?></a>
+                            <a class="page-link" href="<?php echo $base_url; ?>products.php?page=<?php echo $i; ?><?php echo !empty($search) ? '&search=' . urlencode($search) : ''; ?><?php echo !empty($category) ? '&category=' . urlencode($category) : ''; ?>"><?php echo $i; ?></a>
                         </li>
                     <?php endfor; ?>
 
                     <?php if ($page < $total_pages): ?>
                         <li class="page-item">
-                            <a class="page-link" href="?page=<?php echo $page + 1; ?><?php echo !empty($search) ? '&search=' . urlencode($search) : ''; ?><?php echo !empty($category) ? '&category=' . urlencode($category) : ''; ?>">Next</a>
+                            <a class="page-link" href="<?php echo $base_url; ?>products.php?page=<?php echo $page + 1; ?><?php echo !empty($search) ? '&search=' . urlencode($search) : ''; ?><?php echo !empty($category) ? '&category=' . urlencode($category) : ''; ?>">Next</a>
                         </li>
                         <li class="page-item">
-                            <a class="page-link" href="?page=<?php echo $total_pages; ?><?php echo !empty($search) ? '&search=' . urlencode($search) : ''; ?><?php echo !empty($category) ? '&category=' . urlencode($category) : ''; ?>">Last</a>
+                            <a class="page-link" href="<?php echo $base_url; ?>products.php?page=<?php echo $total_pages; ?><?php echo !empty($search) ? '&search=' . urlencode($search) : ''; ?><?php echo !empty($category) ? '&category=' . urlencode($category) : ''; ?>">Last</a>
                         </li>
                     <?php endif; ?>
                 </ul>
