@@ -4,9 +4,21 @@
  * Supports live video commerce streaming and chat
  */
 
-session_start();
+// Start session only if not already started
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+
 require_once 'config/database.php';
 require_once 'includes/functions.php';
+
+// Check if database connection exists
+if (!isset($conn) || $conn === null) {
+    die('Error: Database connection failed. Please check config/database.php');
+}
+
+// Define base URL for all links
+$base_url = 'http://localhost/videocom/video-commerce-shopify/';
 
 $pageTitle = 'Live Stream - VideoCommerce';
 $roomId = isset($_GET['room']) ? htmlspecialchars($_GET['room']) : 'default';
@@ -19,7 +31,7 @@ $roomId = isset($_GET['room']) ? htmlspecialchars($_GET['room']) : 'default';
     <title><?php echo $pageTitle; ?></title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
-    <link rel="stylesheet" href="assets/css/style.css">
+    <link rel="stylesheet" href="<?php echo $base_url; ?>assets/css/style.css">
     <style>
         .video-container { background: #000; border-radius: 10px; overflow: hidden; }
         .local-video { width: 200px; position: absolute; bottom: 20px; right: 20px; border-radius: 8px; border: 2px solid #fff; }
@@ -33,7 +45,7 @@ $roomId = isset($_GET['room']) ? htmlspecialchars($_GET['room']) : 'default';
 <body class="bg-dark">
     <nav class="navbar navbar-expand-lg navbar-dark bg-dark border-bottom">
         <div class="container-fluid">
-            <a class="navbar-brand" href="index.php">
+            <a class="navbar-brand" href="<?php echo $base_url; ?>index.php">
                 <i class="bi bi-play-circle-fill"></i> VideoCommerce
             </a>
             <span class="badge bg-danger live-badge"><i class="bi bi-broadcast"></i> LIVE</span>
@@ -47,7 +59,7 @@ $roomId = isset($_GET['room']) ? htmlspecialchars($_GET['room']) : 'default';
                 <div class="video-container position-relative" style="height: 70vh;">
                     <video id="remoteVideo" class="remote-video" autoplay playsinline></video>
                     <video id="localVideo" class="local-video" autoplay playsinline muted></video>
-                    
+
                     <div class="stream-controls">
                         <button id="toggleVideo" class="btn btn-light rounded-circle me-2">
                             <i class="bi bi-camera-video-fill"></i>
@@ -63,7 +75,7 @@ $roomId = isset($_GET['room']) ? htmlspecialchars($_GET['room']) : 'default';
                         </button>
                     </div>
                 </div>
-                
+
                 <!-- Start/Join Stream Buttons -->
                 <div class="d-flex gap-2 mt-3">
                     <button id="startStream" class="btn btn-success">
@@ -112,8 +124,8 @@ $roomId = isset($_GET['room']) ? htmlspecialchars($_GET['room']) : 'default';
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
-    <script src="assets/js/webrtc.js"></script>
-    <script src="assets/js/live-chat.js"></script>
+    <script src="<?php echo $base_url; ?>assets/js/webrtc.js"></script>
+    <script src="<?php echo $base_url; ?>assets/js/live-chat.js"></script>
     <script>
         // Initialize WebRTC configuration
         const config = {
@@ -124,7 +136,7 @@ $roomId = isset($_GET['room']) ? htmlspecialchars($_GET['room']) : 'default';
         };
         
         // Socket.io connection for signaling
-        const socket = io('<?php echo SOCKET_SERVER_URL; ?>');
+        const socket = io('<?php echo isset($GLOBALS['SOCKET_SERVER_URL']) ? htmlspecialchars($GLOBALS['SOCKET_SERVER_URL']) : 'http://localhost:3000'; ?>');
         const roomId = document.getElementById('roomInput').value;
         
         // Join room on page load
