@@ -4,12 +4,24 @@
  * Support for Admin, Influencer, and Regular Users
  */
 
-session_start();
+// Start session only if not already started
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+
 require_once '../config/database.php';
+
+// Check if database connection exists
+if (!isset($conn) || $conn === null) {
+    die('Error: Database connection failed. Please check config/database.php');
+}
+
+// Define base URL for all links
+$base_url = 'http://localhost/videocom/video-commerce-shopify/';
 
 // Check if already logged in
 if (isset($_SESSION['user_id'])) {
-    header('Location: ../dashboard.php');
+    header('Location: ' . $base_url . 'dashboard.php');
     exit;
 }
 
@@ -18,14 +30,14 @@ $mode = isset($_GET['mode']) ? $_GET['mode'] : 'login'; // login or signup
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($mode === 'signup') {
-        handleSignup($pdo);
+        handleSignup($conn);
     } else {
-        handleLogin($pdo);
+        handleLogin($conn);
     }
 }
 
-function handleSignup($pdo) {
-    global $error;
+function handleSignup($conn) {
+    global $error, $base_url;
     
     $email = $_POST['email'] ?? '';
     $name = $_POST['name'] ?? '';
@@ -44,7 +56,7 @@ function handleSignup($pdo) {
     }
     
     // Check if email exists
-    $stmt = $pdo->prepare('SELECT id FROM users WHERE email = ?');
+    $stmt = $conn->prepare('SELECT id FROM users WHERE email = ?');
     $stmt->execute([$email]);
     if ($stmt->fetch()) {
         $error = 'Email already registered';
@@ -54,10 +66,9 @@ function handleSignup($pdo) {
     // Create new user
     try {
         $passwordHash = password_hash($password, PASSWORD_BCRYPT);
-        $stmt = $pdo->prepare('
-            INSERT INTO users (email, name, password_hash, role, avatar, created_at)
-            VALUES (?, ?, ?, ?, ?, NOW())
-        ');
+        $stmt = $conn->prepare(
+            'INSERT INTO users (email, name, password_hash, role, avatar, created_at) VALUES (?, ?, ?, ?, ?, NOW())'
+        );
         $stmt->execute([
             $email,
             $name,
@@ -74,8 +85,8 @@ function handleSignup($pdo) {
     }
 }
 
-function handleLogin($pdo) {
-    global $error;
+function handleLogin($conn) {
+    global $error, $base_url;
     
     $email = $_POST['email'] ?? '';
     $password = $_POST['password'] ?? '';
@@ -86,29 +97,29 @@ function handleLogin($pdo) {
     }
     
     try {
-        $stmt = $pdo->prepare('SELECT id, password_hash, role, name FROM users WHERE email = ?');
+        $stmt = $conn->prepare('SELECT id, password_hash, role, name FROM users WHERE email = ?');
         $stmt->execute([$email]);
-        $user = $stmt->fetch();
+        $user = $stmt->fetch(PDO::FETCH_ASSOC);
         
         if ($user && password_verify($password, $user['password_hash'])) {
             $_SESSION['user_id'] = $user['id'];
-            $_SESSION['role'] = $user['role'];
-            $_SESSION['name'] = $user['name'];
+            $_SESSION['user_role'] = $user['role'];
+            $_SESSION['user_name'] = $user['name'];
             
             // Redirect based on role
             if ($user['role'] === 'admin') {
-                header('Location: ../admin/dashboard.php');
+                header('Location: ' . $base_url . 'admin/dashboard.php');
             } elseif ($user['role'] === 'influencer') {
-                header('Location: ../influencer/dashboard.php');
+                header('Location: ' . $base_url . 'influencer/dashboard.php');
             } else {
-                header('Location: ../dashboard.php');
+                header('Location: ' . $base_url . 'dashboard.php');
             }
             exit;
         } else {
             $error = 'Invalid email or password';
         }
     } catch (Exception $e) {
-        $error = 'Login error';
+        $error = 'Login error: ' . $e->getMessage();
     }
 }
 ?>
@@ -135,65 +146,70 @@ function handleLogin($pdo) {
                         <h1 class="text-center mb-4"><i class="bi bi-play-circle-fill"></i> VideoCommerce</h1>
                         
                         <?php if ($error): ?>
-                        <div class="alert alert-danger"><?php echo $error; ?></div>
+                        <div class="alert alert-danger"><?php echo htmlspecialchars($error); ?></div>
+                        <?php endif; ?>
+                        
+                        <?php if (isset($_SESSION['success'])): ?>
+                        <div class="alert alert-success"><?php echo htmlspecialchars($_SESSION['success']); unset($_SESSION['success']); ?></div>
                         <?php endif; ?>
                         
                         <?php if ($mode === 'signup'): ?>
-                            <!-- SIGNUP FORM -->
-                            <h3 class="text-center mb-4">Create Account</h3>
-                            <form method="POST">
-                                <div class="mb-3">
-                                    <label class="form-label">Full Name</label>
-                                    <input type="text" name="name" class="form-control" required>
-                                </div>
-                                <div class="mb-3">
-                                    <label class="form-label">Email</label>
-                                    <input type="email" name="email" class="form-control" required>
-                                </div>
-                                <div class="mb-3">
-                                    <label class="form-label">Account Type</label>
-                                    <select name="role" class="form-control">
-                                        <option value="buyer">Customer</option>
-                                        <option value="influencer">Influencer (Create & Sell Products)</option>
-                                    </select>
-                                </div>
-                                <div class="mb-3">
-                                    <label class="form-label">Password</label>
-                                    <input type="password" name="password" class="form-control" required>
-                                </div>
-                                <button type="submit" class="btn btn-primary w-100 mb-3">Create Account</button>
-                            </form>
-                            <p class="text-center">Already have an account? <a href="?mode=login">Login</a></p>
-                        <?php else: ?>
-                            <!-- LOGIN FORM -->
-                            <h3 class="text-center mb-4">Login</h3>
-                            <form method="POST">
-                                <div class="mb-3">
-                                    <label class="form-label">Email</label>
-                                    <input type="email" name="email" class="form-control" required placeholder="admin@videocommerce.local">
-                                </div>
-                                <div class="mb-3">
-                                    <label class="form-label">Password</label>
-                                    <input type="password" name="password" class="form-control" required placeholder="demo123">
-                                </div>
-                                <button type="submit" class="btn btn-primary w-100 mb-3">Login</button>
-                            </form>
-                            <p class="text-center">New user? <a href="?mode=signup">Create Account</a></p>
-                            
-                            <!-- DEMO CREDENTIALS -->
-                            <hr>
-                            <div class="alert alert-info small">
-                                <strong>Demo Credentials:</strong><br>
-                                👨‍💼 Admin: admin@videocommerce.local / demo123<br>
-                                👥 Influencer: influencer1@demo.local / demo123<br>
-                                🛍️ Customer: customer1@demo.local / demo123
+                        <!-- SIGNUP FORM -->
+                        <h3 class="text-center mb-4">Create Account</h3>
+                        <form method="POST">
+                            <div class="mb-3">
+                                <label class="form-label">Full Name</label>
+                                <input type="text" name="name" class="form-control" required>
                             </div>
+                            <div class="mb-3">
+                                <label class="form-label">Email</label>
+                                <input type="email" name="email" class="form-control" required>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Account Type</label>
+                                <select name="role" class="form-control">
+                                    <option value="buyer">Customer</option>
+                                    <option value="influencer">Influencer (Create & Sell Products)</option>
+                                </select>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Password</label>
+                                <input type="password" name="password" class="form-control" required>
+                            </div>
+                            <button type="submit" class="btn btn-primary w-100 mb-3">Create Account</button>
+                        </form>
+                        <p class="text-center">Already have an account? <a href="?mode=login">Login</a></p>
+                        <?php else: ?>
+                        <!-- LOGIN FORM -->
+                        <h3 class="text-center mb-4">Login</h3>
+                        <form method="POST">
+                            <div class="mb-3">
+                                <label class="form-label">Email</label>
+                                <input type="email" name="email" class="form-control" required placeholder="admin@videocommerce.local">
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Password</label>
+                                <input type="password" name="password" class="form-control" required placeholder="demo123">
+                            </div>
+                            <button type="submit" class="btn btn-primary w-100 mb-3">Login</button>
+                        </form>
+                        <p class="text-center">New user? <a href="?mode=signup">Create Account</a></p>
+                        
+                        <!-- DEMO CREDENTIALS -->
+                        <hr>
+                        <div class="alert alert-info small">
+                            <strong>Demo Credentials:</strong><br>
+                            👨‍💼 Admin: admin@videocommerce.local / demo123<br>
+                            👥 Influencer: influencer1@demo.local / demo123<br>
+                            🛍️ Customer: customer1@demo.local / demo123
+                        </div>
                         <?php endif; ?>
                     </div>
                 </div>
             </div>
         </div>
     </div>
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
