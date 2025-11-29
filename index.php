@@ -4,13 +4,25 @@
  * Connects to Shopify, WebRTC Video, Socket.io Chat
  */
 
-session_start();
+// Start session only if not already started
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+
 require_once 'config/database.php';
 require_once 'includes/functions.php';
 require_once 'includes/ShopifyAPI.php';
 
+// Check if database connection exists
+if (!isset($conn) || $conn === null) {
+    die('Error: Database connection failed. Please check config/database.php');
+}
+
+// Define base URL for all links
+$base_url = 'http://localhost/videocom/video-commerce-shopify/';
+
 $pageTitle = 'Video Commerce - Shop Live';
-$products = getProducts($pdo);
+$products = getProducts($conn);
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -21,13 +33,13 @@ $products = getProducts($pdo);
     <!-- Bootstrap 5.0.2 CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
-    <link rel="stylesheet" href="assets/css/style.css">
+    <link rel="stylesheet" href="<?php echo $base_url; ?>assets/css/style.css">
 </head>
 <body>
     <!-- Navigation -->
     <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
         <div class="container">
-            <a class="navbar-brand" href="index.php">
+            <a class="navbar-brand" href="<?php echo $base_url; ?>index.php">
                 <i class="bi bi-play-circle-fill"></i> VideoCommerce
             </a>
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
@@ -35,17 +47,17 @@ $products = getProducts($pdo);
             </button>
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav me-auto">
-                    <li class="nav-item"><a class="nav-link active" href="index.php">Home</a></li>
-                    <li class="nav-item"><a class="nav-link" href="live.php">Live Stream</a></li>
-                    <li class="nav-item"><a class="nav-link" href="products.php">Products</a></li>
+                    <li class="nav-item"><a class="nav-link active" href="<?php echo $base_url; ?>index.php">Home</a></li>
+                    <li class="nav-item"><a class="nav-link" href="<?php echo $base_url; ?>live.php">Live Stream</a></li>
+                    <li class="nav-item"><a class="nav-link" href="<?php echo $base_url; ?>products.php">Products</a></li>
                 </ul>
                 <div class="d-flex">
                     <?php if(isset($_SESSION['shopify_connected'])): ?>
                         <span class="badge bg-success me-2 align-self-center">Shopify Connected</span>
                     <?php else: ?>
-                        <a href="shopify/connect.php" class="btn btn-outline-success me-2">Connect Shopify</a>
+                        <a href="<?php echo $base_url; ?>shopify/connect.php" class="btn btn-outline-success me-2">Connect Shopify</a>
                     <?php endif; ?>
-                    <a href="cart.php" class="btn btn-outline-light">
+                    <a href="<?php echo $base_url; ?>cart.php" class="btn btn-outline-light">
                         <i class="bi bi-cart3"></i> Cart <span class="badge bg-danger" id="cart-count">0</span>
                     </a>
                 </div>
@@ -60,10 +72,10 @@ $products = getProducts($pdo);
                 <div class="col-lg-6">
                     <h1 class="display-4 fw-bold">Shop Live with Video</h1>
                     <p class="lead">Watch product demos, join live shopping events, and chat with sellers in real-time.</p>
-                    <a href="live.php" class="btn btn-primary btn-lg me-2">
+                    <a href="<?php echo $base_url; ?>live.php" class="btn btn-primary btn-lg me-2">
                         <i class="bi bi-broadcast"></i> Watch Live
                     </a>
-                    <a href="products.php" class="btn btn-outline-secondary btn-lg">Browse Products</a>
+                    <a href="<?php echo $base_url; ?>products.php" class="btn btn-outline-secondary btn-lg">Browse Products</a>
                 </div>
                 <div class="col-lg-6">
                     <div class="video-preview-card">
@@ -90,10 +102,10 @@ $products = getProducts($pdo);
                             <img src="<?php echo htmlspecialchars($product['image']); ?>" 
                                  class="card-img-top" alt="<?php echo htmlspecialchars($product['title']); ?>">
                             <?php if($product['video_url']): ?>
-                            <button class="btn btn-play-video" data-video="<?php echo htmlspecialchars($product['video_url']); ?>" 
-                                    data-type="<?php echo htmlspecialchars($product['video_type']); ?>">
-                                <i class="bi bi-play-circle-fill"></i>
-                            </button>
+                                <button class="btn btn-play-video" data-video="<?php echo htmlspecialchars($product['video_url']); ?>" 
+                                        data-type="<?php echo htmlspecialchars($product['video_type']); ?>">
+                                    <i class="bi bi-play-circle-fill"></i>
+                                </button>
                             <?php endif; ?>
                         </div>
                         <div class="card-body">
@@ -148,7 +160,7 @@ $products = getProducts($pdo);
     <!-- Footer -->
     <footer class="bg-dark text-white py-4">
         <div class="container text-center">
-            <p class="mb-0">&copy; 2025 VideoCommerce. Powered by Shopify Integration.</p>
+            <p class="mb-0">© 2025 VideoCommerce. Powered by Shopify Integration.</p>
         </div>
     </footer>
 
@@ -157,8 +169,8 @@ $products = getProducts($pdo);
     <!-- Socket.io Client -->
     <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
     <!-- Custom Scripts -->
-    <script src="assets/js/video-player.js"></script>
-    <script src="assets/js/chat.js"></script>
-    <script src="assets/js/cart.js"></script>
+    <script src="<?php echo $base_url; ?>assets/js/video-player.js"></script>
+    <script src="<?php echo $base_url; ?>assets/js/chat.js"></script>
+    <script src="<?php echo $base_url; ?>assets/js/cart.js"></script>
 </body>
 </html>
