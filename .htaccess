@@ -5,21 +5,18 @@ Options -Indexes +FollowSymLinks
 <IfModule mod_rewrite.c>
     RewriteEngine On
     RewriteBase /videocom/video-commerce-shopify/
-    
+
     # Allow access to actual files and directories
     RewriteCond %{REQUEST_FILENAME} -f [OR]
     RewriteCond %{REQUEST_FILENAME} -d
     RewriteRule ^ - [L]
-    
+
     # Route all other requests to index.php
     RewriteRule ^(.*)$ index.php [QSA,L]
 </IfModule>
 
-# Allow directory access (fixes Forbidden error)
-<Directory *>
-    Allow from all
-    Require all granted
-</Directory>
+# Ensure PHP processes files
+AddType application/x-httpd-php .php
 
 # Set appropriate headers
 <IfModule mod_headers.c>
